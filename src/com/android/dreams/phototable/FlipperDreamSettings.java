@@ -28,6 +28,13 @@ import android.view.View;
 
 import java.util.LinkedList;
 
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
+import android.widget.Toast;
+import android.util.Log;
+import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
+
 /**
  * Settings panel for photo flipping dream.
  */
@@ -43,10 +50,17 @@ public class FlipperDreamSettings extends ListActivity {
     private MenuItem mSelectAll;
     private AsyncTask<Void, Void, Void> mLoadingTask;
 
+    private static final int FLIPPER_DREAM_SETTINGS_PERMISSION_REQUEST = 1;
+
     @Override
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
         mSettings = getSharedPreferences(PREFS_NAME, 0);
+        if (checkSelfPermission(READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            String[] requestedPerms = {READ_EXTERNAL_STORAGE};
+            requestPermissions(requestedPerms, FLIPPER_DREAM_SETTINGS_PERMISSION_REQUEST);
+            return;
+        }
         init();
     }
 
@@ -57,6 +71,9 @@ public class FlipperDreamSettings extends ListActivity {
     }
 
     protected void init() {
+        if (checkSelfPermission(READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
         mPhotoSource = new PhotoSourcePlexor(this, mSettings);
         setContentView(R.layout.settingslist);
         if (mLoadingTask != null && mLoadingTask.getStatus() != Status.FINISHED) {
@@ -132,6 +149,33 @@ public class FlipperDreamSettings extends ListActivity {
                 mSelectAll.setTitle(R.string.photodream_select_none);
             } else {
                 mSelectAll.setTitle(R.string.photodream_select_all);
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(
+            int requestCode, String permissions[], int[] grantResults) {
+        if (requestCode == FLIPPER_DREAM_SETTINGS_PERMISSION_REQUEST) {
+            boolean bAllGranted = true;
+            int permissionLength = permissions.length;
+            int resultLength = grantResults.length;
+            if ((permissionLength == resultLength) && (permissionLength > 0)) {
+                for (int i = 0; i < permissionLength; i++) {
+                    if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+                        bAllGranted = false;
+                    }
+                }
+            } else {
+                bAllGranted = false;
+            }
+
+            if (bAllGranted == true) {
+                init();
+            } else {
+                Log.v(TAG, "Permission not granted.");
+                Toast.makeText(this, R.string.runtime_permissions_error, Toast.LENGTH_SHORT).show();
+                finish();
             }
         }
     }
